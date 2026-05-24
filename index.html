@@ -579,6 +579,33 @@
       background: rgba(255, 255, 255, 0.6);
     }
 
+    .loading-state {
+      display: grid;
+      place-items: center;
+      gap: 14px;
+      min-height: 220px;
+      color: var(--muted);
+      text-align: center;
+      border: 1px dashed #cbd6d1;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.68);
+    }
+
+    .spinner {
+      width: 34px;
+      height: 34px;
+      border: 4px solid #d8e7e1;
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     .footer-note {
       margin-top: 14px;
       color: var(--muted);
@@ -686,17 +713,17 @@
 
           <div class="field">
             <label for="title">视频标题 / 封面文案</label>
-            <input id="title" value="普通人 7 天拿到高薪 offer，我把方法一次讲透" />
+            <input id="title" placeholder="例如：普通人 7 天拿到高薪 offer，我把方法一次讲透" />
           </div>
 
           <div class="field">
             <label for="script">口播稿 / 正文内容</label>
-            <textarea id="script">很多人找不到工作，是因为没掌握真正有效的方法。按我这套模板做，7 天内一定能拿到高薪 offer。评论区打 1，我直接发你内部资料。这个方法适合所有应届生，照着做就能逆袭。</textarea>
+            <textarea id="script" placeholder="粘贴准备发布的口播稿、正文内容或视频字幕..."></textarea>
           </div>
 
           <div class="field">
             <label for="comment">评论区互动引导</label>
-            <input id="comment" value="评论区打 1，马上领取内部资料" />
+            <input id="comment" placeholder="例如：评论区打 1，马上领取内部资料" />
           </div>
 
           <div class="actions">
@@ -831,44 +858,72 @@
 
     const $ = (id) => document.getElementById(id);
     let scanCount = 0;
+    let pendingAnalysis = null;
 
     function collectText() {
       return `${$("title").value} ${$("script").value} ${$("comment").value}`;
     }
 
     function analyze() {
-      scanCount += 1;
+      const text = collectText().trim();
       const scanBtn = $("scanBtn");
+
+      if (!text) {
+        $("resultTime").textContent = "等待输入";
+        $("result").innerHTML = `
+          <div class="empty-hint">
+            请先输入标题、口播稿或评论区互动引导。输入完成后点击“开始安全检测”，系统会先进行短暂分析，再生成检测结果。
+          </div>
+        `;
+        return;
+      }
+
+      if (pendingAnalysis) {
+        window.clearTimeout(pendingAnalysis);
+      }
+
+      scanCount += 1;
       scanBtn.disabled = true;
-      scanBtn.textContent = "检测中...";
-      const text = collectText();
-      const issues = rules.filter(rule =>
-        rule.keywords.some(keyword => text.includes(keyword))
-      );
-      const highCount = issues.filter(issue => issue.level === "high").length;
-      const mediumCount = issues.filter(issue => issue.level === "medium").length;
-      const risk = highCount > 0 ? "高风险" : mediumCount > 0 ? "中风险" : "低风险";
-      const score = Math.max(35, 96 - highCount * 24 - mediumCount * 12);
-      const focus = issues[0]?.type || "表达边界";
+      scanBtn.textContent = "分析中...";
+      $("resultTime").textContent = `第 ${scanCount} 次检测 · 分析中`;
+      $("result").innerHTML = `
+        <div class="loading-state">
+          <div class="spinner" aria-hidden="true"></div>
+          <div>
+            <strong>正在分析内容风险</strong><br>
+            <span>系统正在识别风险表达、计算可发布分，并生成改写建议...</span>
+          </div>
+        </div>
+      `;
 
-      const timestamp = new Date().toLocaleTimeString("zh-CN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit"
-      });
-      $("resultTime").textContent = `第 ${scanCount} 次检测 · ${timestamp}`;
+      pendingAnalysis = window.setTimeout(() => {
+        const latestText = collectText();
+        const issues = rules.filter(rule =>
+          rule.keywords.some(keyword => latestText.includes(keyword))
+        );
+        const highCount = issues.filter(issue => issue.level === "high").length;
+        const mediumCount = issues.filter(issue => issue.level === "medium").length;
+        const risk = highCount > 0 ? "高风险" : mediumCount > 0 ? "中风险" : "低风险";
+        const score = Math.max(35, 96 - highCount * 24 - mediumCount * 12);
 
-      renderResult({ issues, risk, score, highCount, mediumCount });
-      const resultPanel = $("result");
-      resultPanel.classList.remove("pulse");
-      void resultPanel.offsetWidth;
-      resultPanel.classList.add("pulse");
-      scanBtn.textContent = "检测完成";
+        const timestamp = new Date().toLocaleTimeString("zh-CN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit"
+        });
+        $("resultTime").textContent = `第 ${scanCount} 次检测 · ${timestamp}`;
 
-      window.setTimeout(() => {
+        renderResult({ issues, risk, score, highCount, mediumCount });
+        const resultPanel = $("result");
+        resultPanel.classList.remove("pulse");
+        void resultPanel.offsetWidth;
+        resultPanel.classList.add("pulse");
+        scanBtn.textContent = "检测完成";
         scanBtn.disabled = false;
-        scanBtn.textContent = "重新安全检测";
-      }, 450);
+        window.setTimeout(() => {
+          scanBtn.textContent = "重新安全检测";
+        }, 650);
+      }, 1800);
     }
 
     function rewriteText(text) {
