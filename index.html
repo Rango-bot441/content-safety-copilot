@@ -490,6 +490,24 @@
       color: var(--muted);
       font-size: 12px;
       font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .diff-status {
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 11px;
+      color: var(--green-dark);
+      background: #dff3ed;
+      white-space: nowrap;
+    }
+
+    .diff-status.clean {
+      color: #6b716e;
+      background: #ece7dd;
     }
 
     .diff-body {
@@ -709,7 +727,7 @@
       {
         type: "夸大承诺",
         level: "high",
-        keywords: ["一定", "保证", "稳赚", "必火", "百分百", "马上暴富", "包过", "逆袭"],
+        keywords: ["一定", "保证", "稳赚", "必火", "百分百", "马上暴富", "包过", "逆袭", "7 天拿到", "高薪 offer"],
         reason: "表达中包含确定性承诺，容易造成误导预期，也会降低平台对内容可信度的判断。",
         fix: "改成基于经验或案例的概率表达，例如“这套方法能提升准备效率，适合先做自查和优化”。"
       },
@@ -789,6 +807,10 @@
     ];
 
     const rewriteRules = [
+      ["7 天拿到高薪 offer", "提升求职准备效率"],
+      ["7 天内一定能拿到高薪 offer", "7 天内更有机会提升求职准备效率"],
+      ["高薪 offer", "更匹配的机会"],
+      ["我把方法一次讲透", "我把准备方法讲清楚"],
       ["一定能", "有机会提升"],
       ["一定", "更有机会"],
       ["保证", "帮助提升"],
@@ -860,14 +882,7 @@
         }
       });
 
-      if (!changes.length) {
-        changes.push({
-          before: "当前文案未命中明显高危词",
-          after: "建议保留原意，并补充适用人群、信息来源或风险边界"
-        });
-      }
-
-      return { text: output, changes };
+      return { text: output, changes, changed: changes.length > 0 };
     }
 
     function buildSafeCopy(titleRewrite, scriptRewrite, commentRewrite) {
@@ -902,7 +917,10 @@
       ];
       const diffHtml = diffItems.map(item => `
         <div class="diff-row">
-          <div class="diff-tag">${item.label}</div>
+          <div class="diff-tag">
+            <span>${item.label}</span>
+            <span class="diff-status ${item.rewrite.changed ? "" : "clean"}">${item.rewrite.changed ? "已优化" : "无需修改"}</span>
+          </div>
           <div class="diff-body">
             <div class="diff-cell">
               <span>修改前</span>
