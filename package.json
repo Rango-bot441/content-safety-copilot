@@ -1,0 +1,18 @@
+{
+  "name": "content-safety-copilot",
+  "version": "1.0.0",
+  "private": false,
+  "description": "A static pre-publish content safety assistant for creators.",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 4182",
+    "serve": "python3 -m http.server 4182"
+  },
+  "keywords": [
+    "content-safety",
+    "creator-tools",
+    "static-site",
+    "moderation"
+  ],
+  "license": "MIT"
+}

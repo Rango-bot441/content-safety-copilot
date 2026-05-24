@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Content Safety Copilot</title>
+  <style>
+    :root {
+      --ink: #18201c;
+      --muted: #68736f;
+      --line: #d9e0dc;
+      --paper: #f6f4ee;
+      --panel: #ffffff;
+      --green: #0f8b6f;
+      --green-dark: #0a5f51;
+      --amber: #b86d16;
+      --red: #c5443d;
+      --blue: #316f9f;
+      --shadow: 0 24px 70px rgba(31, 45, 39, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(135deg, rgba(15, 139, 111, 0.08), transparent 34%),
+        linear-gradient(225deg, rgba(184, 109, 22, 0.09), transparent 28%),
+        var(--paper);
+      font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+    }
+
+    button, textarea, input, select {
+      font: inherit;
+    }
+
+    .shell {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .mark {
+      width: 48px;
+      height: 48px;
+      border: 2px solid var(--ink);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: #fdfbf4;
+      box-shadow: 6px 6px 0 rgba(15, 139, 111, 0.28);
+      flex: 0 0 auto;
+    }
+
+    .mark svg {
+      width: 25px;
+      height: 25px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 54px);
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(360px, 0.9fr) minmax(520px, 1.35fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: linear-gradient(90deg, #eef8f3, #fffdf7);
+      position: relative;
+    }
+
+    .panel-header::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 18px;
+      bottom: 18px;
+      width: 5px;
+      border-radius: 0 999px 999px 0;
+      background: var(--green);
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.1;
+      font-weight: 900;
+      display: inline-flex;
+      align-items: center;
+      padding: 9px 13px;
+      border-radius: 8px;
+      color: white;
+      background: var(--green);
+      box-shadow: 5px 5px 0 rgba(15, 139, 111, 0.18);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      color: var(--muted);
+      font-size: 12px;
+      background: #fffdf7;
+      white-space: nowrap;
+    }
+
+    .panel-body {
+      padding: 20px;
+    }
+
+    .pulse {
+      animation: pulsePanel 0.75s ease;
+    }
+
+    @keyframes pulsePanel {
+      0% {
+        box-shadow: 0 0 0 0 rgba(15, 139, 111, 0.3);
+      }
+      100% {
+        box-shadow: 0 0 0 16px rgba(15, 139, 111, 0);
+      }
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    textarea, input, select {
+      width: 100%;
+      border: 1px solid #cfd8d3;
+      border-radius: 8px;
+      background: #fffef9;
+      color: var(--ink);
+      outline: none;
+      padding: 12px 13px;
+      transition: border 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+
+    textarea {
+      min-height: 152px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    textarea:focus, input:focus, select:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 4px rgba(15, 139, 111, 0.12);
+      background: white;
+    }
+
+    .two {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 8px;
+      padding: 12px 15px;
+      cursor: pointer;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-weight: 800;
+      transition: transform 0.18s, box-shadow 0.18s, background 0.18s;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .primary {
+      flex: 1;
+      color: white;
+      background: var(--green);
+      box-shadow: 0 12px 25px rgba(15, 139, 111, 0.24);
+    }
+
+    .primary:hover {
+      background: var(--green-dark);
+    }
+
+    .secondary {
+      background: #ede8dc;
+      color: var(--ink);
+    }
+
+    .result-overview {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .overview-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf7;
+      padding: 14px;
+      min-height: 98px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .overview-card span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .overview-card strong {
+      display: block;
+      margin-top: 9px;
+      font-size: 24px;
+      line-height: 1.1;
+    }
+
+    .overview-card small {
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.35;
+    }
+
+    .overview-card.risk-low {
+      border-color: rgba(15, 139, 111, 0.32);
+      background: #eff9f5;
+    }
+
+    .overview-card.risk-medium {
+      border-color: rgba(184, 109, 22, 0.34);
+      background: #fff5e6;
+    }
+
+    .overview-card.risk-high {
+      border-color: rgba(197, 68, 61, 0.3);
+      background: #fff0ee;
+    }
+
+    .summary {
+      background: #fffdf7;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      min-height: 214px;
+    }
+
+    .summary h3, .block h3 {
+      margin: 0 0 14px;
+      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      padding: 7px 11px;
+      border: 1px solid rgba(15, 139, 111, 0.22);
+      border-radius: 8px;
+      color: var(--green-dark);
+      background: #e8f6f1;
+      font-weight: 900;
+    }
+
+    .summary p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .chip {
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: #ecf5f1;
+      color: var(--green-dark);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .block {
+      background: #fffdf7;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .issue-list, .check-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .issue {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid #ead6bd;
+      border-radius: 8px;
+      background: #fff8ed;
+    }
+
+    .issue.high-risk {
+      border-color: #efc4c0;
+      background: #fff1ef;
+    }
+
+    .issue-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      margin-top: 7px;
+      background: var(--amber);
+    }
+
+    .issue.high-risk .issue-dot {
+      background: var(--red);
+    }
+
+    .issue strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .issue p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 13px;
+    }
+
+    .rewrite {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .rewrite-box {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 13px;
+      background: white;
+      min-height: 132px;
+    }
+
+    .rewrite-box span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 8px;
+      font-weight: 800;
+    }
+
+    .rewrite-box p {
+      margin: 0;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .safe {
+      border-color: rgba(15, 139, 111, 0.28);
+      background: #f2fbf7;
+    }
+
+    .block-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .block-head h3 {
+      margin: 0;
+    }
+
+    .copy-btn {
+      border: 1px solid rgba(15, 139, 111, 0.3);
+      background: #eef9f5;
+      color: var(--green-dark);
+      border-radius: 8px;
+      padding: 8px 11px;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .copy-btn:hover {
+      background: #def1eb;
+    }
+
+    .copy-fallback {
+      display: none;
+      width: 100%;
+      margin-top: 10px;
+      min-height: 136px;
+      background: #ffffff;
+    }
+
+    .copy-fallback.active {
+      display: block;
+    }
+
+    .diff-list {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .diff-row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: white;
+      overflow: hidden;
+    }
+
+    .diff-tag {
+      padding: 8px 10px;
+      background: #f0ece2;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .diff-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .diff-cell {
+      padding: 11px;
+      min-height: 74px;
+    }
+
+    .diff-cell:first-child {
+      border-right: 1px solid var(--line);
+      background: #fff6f3;
+    }
+
+    .diff-cell:last-child {
+      background: #f2fbf7;
+    }
+
+    .diff-cell span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .diff-cell p {
+      margin: 0;
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .check-list li {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 10px 0;
+      border-bottom: 1px solid #ece6d9;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .check-list li:last-child {
+      border-bottom: 0;
+    }
+
+    .tick {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      background: #e3f3ee;
+      color: var(--green-dark);
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      font-weight: 900;
+      font-size: 13px;
+    }
+
+    .empty-hint {
+      color: var(--muted);
+      line-height: 1.7;
+      border: 1px dashed #cbd6d1;
+      border-radius: 8px;
+      padding: 18px;
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    .footer-note {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 980px) {
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .layout, .result-overview, .rewrite, .diff-body {
+        grid-template-columns: 1fr;
+      }
+
+      .diff-cell:first-child {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+    }
+
+    @media (max-width: 560px) {
+      .shell {
+        padding: 16px;
+      }
+
+      .two, .actions {
+        grid-template-columns: 1fr;
+        flex-direction: column;
+      }
+
+      .overview-card strong {
+        font-size: 32px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 3l7 3v5c0 4.8-2.8 8.4-7 10-4.2-1.6-7-5.2-7-10V6l7-3z" stroke="#18201c" stroke-width="2" />
+            <path d="M8.5 12l2.2 2.2 4.8-5" stroke="#0f8b6f" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+        <div>
+          <h1>Content Safety Copilot</h1>
+          <p class="subtitle">抖音创作者发布前用来识别风险、表达改写、合规自查</p>
+        </div>
+      </div>
+    </header>
+
+    <section class="layout">
+      <aside class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">内容送检</h2>
+          <span class="badge">发布前</span>
+        </div>
+        <div class="panel-body">
+          <div class="two">
+            <div class="field">
+              <label for="vertical">内容垂类</label>
+              <select id="vertical">
+                <option>泛知识 / 科普</option>
+                <option>教育培训</option>
+                <option>职场成长</option>
+                <option>财经理财</option>
+                <option>商业创业</option>
+                <option>健康养生</option>
+                <option>医疗科普</option>
+                <option>母婴育儿</option>
+                <option>美妆测评</option>
+                <option>穿搭时尚</option>
+                <option>美食探店</option>
+                <option>本地生活</option>
+                <option>旅行户外</option>
+                <option>运动健身</option>
+                <option>科技数码</option>
+                <option>娱乐影视</option>
+                <option>游戏动漫</option>
+                <option>情感生活</option>
+                <option>法律科普</option>
+                <option>家居装修</option>
+                <option>汽车</option>
+                <option>三农乡村</option>
+                <option>其他</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fanRange">账号粉丝量</label>
+              <select id="fanRange">
+                <option>0-100</option>
+                <option>100-1000</option>
+                <option selected>1000-1万</option>
+                <option>1万-10万</option>
+                <option>10万-100万</option>
+                <option>100万以上</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="title">视频标题 / 封面文案</label>
+            <input id="title" value="普通人 7 天拿到高薪 offer，我把方法一次讲透" />
+          </div>
+
+          <div class="field">
+            <label for="script">口播稿 / 正文内容</label>
+            <textarea id="script">很多人找不到工作，是因为没掌握真正有效的方法。按我这套模板做，7 天内一定能拿到高薪 offer。评论区打 1，我直接发你内部资料。这个方法适合所有应届生，照着做就能逆袭。</textarea>
+          </div>
+
+          <div class="field">
+            <label for="comment">评论区互动引导</label>
+            <input id="comment" value="评论区打 1，马上领取内部资料" />
+          </div>
+
+          <div class="actions">
+            <button class="btn primary" id="scanBtn">开始安全检测</button>
+            <button class="btn secondary" id="sampleBtn">换一个样例</button>
+          </div>
+
+          <p class="footer-note">当前版本用规则模拟 AI 审核机制，适合作为 vibe coding 作品集原型展示。</p>
+        </div>
+      </aside>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">AI 检测结果</h2>
+          <span class="badge" id="resultTime">尚未检测</span>
+        </div>
+        <div class="panel-body" id="result">
+          <div class="empty-hint">
+            输入创作者准备发布的标题、口播稿和评论引导后，点击“开始安全检测”。系统会从夸大承诺、敏感垂类、诱导互动、引战表达和平台体验风险几个角度给出判断。
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const rules = [
+      {
+        type: "夸大承诺",
+        level: "high",
+        keywords: ["一定", "保证", "稳赚", "必火", "百分百", "马上暴富", "包过", "逆袭"],
+        reason: "表达中包含确定性承诺，容易造成误导预期，也会降低平台对内容可信度的判断。",
+        fix: "改成基于经验或案例的概率表达，例如“这套方法能提升准备效率，适合先做自查和优化”。"
+      },
+      {
+        type: "诱导互动",
+        level: "medium",
+        keywords: ["评论区打", "点赞领取", "关注后发", "转发领取", "马上领取"],
+        reason: "互动设计过于机械，可能被识别为诱导互动，影响内容体验和分发质量。",
+        fix: "改成自然提问，例如“如果你想要简历检查清单，可以在评论区告诉我你的求职阶段”。"
+      },
+      {
+        type: "敏感资料暗示",
+        level: "medium",
+        keywords: ["内部资料", "内部渠道", "独家内幕", "保密资料", "官方漏洞"],
+        reason: "内容暗示特殊渠道或非公开资料，容易引发可信度和合规风险。",
+        fix: "说明资料来源和边界，例如“我整理了一份公开信息下的求职准备清单”。"
+      },
+      {
+        type: "泛化绝对判断",
+        level: "medium",
+        keywords: ["所有人", "所有应届生", "没人告诉你", "唯一方法", "彻底解决"],
+        reason: "把复杂问题简化为单一结论，容易让用户产生过高期待，也削弱专业可信度。",
+        fix: "增加适用条件，例如“更适合正在投递互联网运营岗的应届生参考”。"
+      },
+      {
+        type: "财经金融敏感",
+        level: "high",
+        keywords: ["稳赚", "翻倍", "荐股", "内幕消息", "无风险收益", "暴富"],
+        reason: "金融收益类承诺属于高敏感表达，需要避免收益保证和投资诱导。",
+        fix: "转为风险教育和信息科普，不给确定性收益判断。"
+      },
+      {
+        type: "健康医疗敏感",
+        level: "high",
+        keywords: ["根治", "药到病除", "不用去医院", "偏方", "治好", "永久有效"],
+        reason: "医疗健康内容不能替代专业诊疗，也不能做疗效保证。",
+        fix: "补充就医建议和信息边界，例如“以下仅为生活习惯分享，具体情况请咨询专业医生”。"
+      },
+      {
+        type: "引战表达",
+        level: "medium",
+        keywords: ["都是废物", "活该", "脑子不好", "垃圾", "别再被骗"],
+        reason: "攻击性或对立式表达可能引发评论区冲突，降低内容安全与社区体验。",
+        fix: "把攻击改为问题分析，例如“很多误区会让求职准备效率变低”。"
+      }
+    ];
+
+    const samples = [
+      {
+        vertical: "职场成长",
+        fanRange: "1000-1万",
+        title: "普通人 7 天拿到高薪 offer，我把方法一次讲透",
+        script: "很多人找不到工作，是因为没掌握真正有效的方法。按我这套模板做，7 天内一定能拿到高薪 offer。评论区打 1，我直接发你内部资料。这个方法适合所有应届生，照着做就能逆袭。",
+        comment: "评论区打 1，马上领取内部资料"
+      },
+      {
+        vertical: "财经理财",
+        fanRange: "100-1000",
+        title: "这个理财方法让我收益翻倍，新手也能稳赚",
+        script: "如果你现在还只会存钱，真的太亏了。这个方法没有什么风险，照着做收益翻倍不是问题。想要完整表格，点赞关注后我发你。",
+        comment: "点赞关注后发完整表格"
+      },
+      {
+        vertical: "健康养生",
+        fanRange: "1万-10万",
+        title: "睡不好的人试试这个习惯，亲测有帮助",
+        script: "我最近调整了睡前作息，减少咖啡因和夜间刷手机，睡眠状态确实稳定了一些。这个方法不替代医疗建议，如果长期失眠，还是建议找专业医生看看。",
+        comment: "你一般几点睡？可以留言交流一下"
+      },
+      {
+        vertical: "泛知识 / 科普",
+        fanRange: "10万-100万",
+        title: "AI 工具怎么帮新手创作者提升选题效率",
+        script: "这期分享一个我自己的选题流程：先拆目标人群，再列痛点，最后用 AI 扩写 5 个标题方向。它不能保证每条都火，但能减少空想时间，提高选题测试效率。",
+        comment: "你最卡的是选题、脚本还是复盘？"
+      }
+    ];
+
+    const rewriteRules = [
+      ["一定能", "有机会提升"],
+      ["一定", "更有机会"],
+      ["保证", "帮助提升"],
+      ["稳赚", "需要谨慎评估风险"],
+      ["收益翻倍", "优化收益认知"],
+      ["没有什么风险", "需要结合个人情况谨慎判断风险"],
+      ["评论区打 1", "可以在评论区说说你的具体阶段"],
+      ["点赞关注后", "如果你需要"],
+      ["马上领取", "可以获取"],
+      ["内部资料", "公开资料整理清单"],
+      ["所有应届生", "正在准备求职的应届生"],
+      ["所有人", "部分人群"],
+      ["逆袭", "逐步改善现状"],
+      ["必火", "更容易提升内容表现"],
+      ["百分百", "更大概率"],
+      ["包过", "提升通过准备度"]
+    ];
+
+    const $ = (id) => document.getElementById(id);
+    let scanCount = 0;
+
+    function collectText() {
+      return `${$("title").value} ${$("script").value} ${$("comment").value}`;
+    }
+
+    function analyze() {
+      scanCount += 1;
+      const scanBtn = $("scanBtn");
+      scanBtn.disabled = true;
+      scanBtn.textContent = "检测中...";
+      const text = collectText();
+      const issues = rules.filter(rule =>
+        rule.keywords.some(keyword => text.includes(keyword))
+      );
+      const highCount = issues.filter(issue => issue.level === "high").length;
+      const mediumCount = issues.filter(issue => issue.level === "medium").length;
+      const risk = highCount > 0 ? "高风险" : mediumCount > 0 ? "中风险" : "低风险";
+      const score = Math.max(35, 96 - highCount * 24 - mediumCount * 12);
+      const focus = issues[0]?.type || "表达边界";
+
+      const timestamp = new Date().toLocaleTimeString("zh-CN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+      $("resultTime").textContent = `第 ${scanCount} 次检测 · ${timestamp}`;
+
+      renderResult({ issues, risk, score, highCount, mediumCount });
+      const resultPanel = $("result");
+      resultPanel.classList.remove("pulse");
+      void resultPanel.offsetWidth;
+      resultPanel.classList.add("pulse");
+      scanBtn.textContent = "检测完成";
+
+      window.setTimeout(() => {
+        scanBtn.disabled = false;
+        scanBtn.textContent = "重新安全检测";
+      }, 450);
+    }
+
+    function rewriteText(text) {
+      let output = text;
+      const changes = [];
+
+      rewriteRules.forEach(([before, after]) => {
+        if (output.includes(before)) {
+          output = output.replaceAll(before, after);
+          changes.push({ before, after });
+        }
+      });
+
+      if (!changes.length) {
+        changes.push({
+          before: "当前文案未命中明显高危词",
+          after: "建议保留原意，并补充适用人群、信息来源或风险边界"
+        });
+      }
+
+      return { text: output, changes };
+    }
+
+    function buildSafeCopy(titleRewrite, scriptRewrite, commentRewrite) {
+      return `【标题/封面文案】\n${titleRewrite.text}\n\n【口播稿/正文内容】\n${scriptRewrite.text}\n\n【评论区互动引导】\n${commentRewrite.text}`;
+    }
+
+    function overviewClass(risk) {
+      if (risk === "高风险") return "risk-high";
+      if (risk === "中风险") return "risk-medium";
+      return "risk-low";
+    }
+
+    function publishAdvice(risk) {
+      if (risk === "高风险") return "先改写再发布";
+      if (risk === "中风险") return "建议微调后发布";
+      return "可进入发布复核";
+    }
+
+    function renderResult({ issues, risk, score }) {
+      const titleOriginal = $("title").value.trim();
+      const scriptOriginal = $("script").value.trim();
+      const commentOriginal = $("comment").value.trim();
+      const titleRewrite = rewriteText(titleOriginal);
+      const scriptRewrite = rewriteText(scriptOriginal);
+      const commentRewrite = rewriteText(commentOriginal);
+      const safeCopy = buildSafeCopy(titleRewrite, scriptRewrite, commentRewrite);
+      window.latestSafeCopy = safeCopy;
+      const diffItems = [
+        { label: "标题 / 封面文案", original: titleOriginal, rewrite: titleRewrite },
+        { label: "口播稿 / 正文内容", original: scriptOriginal, rewrite: scriptRewrite },
+        { label: "评论区互动引导", original: commentOriginal, rewrite: commentRewrite }
+      ];
+      const diffHtml = diffItems.map(item => `
+        <div class="diff-row">
+          <div class="diff-tag">${item.label}</div>
+          <div class="diff-body">
+            <div class="diff-cell">
+              <span>修改前</span>
+              <p>${highlightBefore(item.original, item.rewrite.changes)}</p>
+            </div>
+            <div class="diff-cell">
+              <span>修改后</span>
+              <p>${highlightAfter(item.rewrite.text, item.rewrite.changes)}</p>
+            </div>
+          </div>
+        </div>
+      `).join("");
+      const issueHtml = issues.length ? issues.map(issue => `
+        <li class="issue ${issue.level === "high" ? "high-risk" : ""}">
+          <span class="issue-dot"></span>
+          <div>
+            <strong>${issue.type}</strong>
+            <p>${issue.reason}</p>
+            <p><b>建议：</b>${issue.fix}</p>
+          </div>
+        </li>
+      `).join("") : `
+        <li class="issue">
+          <span class="issue-dot"></span>
+          <div>
+            <strong>未发现明显高危表达</strong>
+            <p>当前内容整体较稳，可以继续检查事实来源、案例边界和评论区互动方式。</p>
+          </div>
+        </li>
+      `;
+
+      const focus = issues[0]?.type || "表达边界";
+
+      $("result").innerHTML = `
+        <div class="result-overview">
+          <div class="overview-card ${overviewClass(risk)}">
+            <span>风险等级</span>
+            <strong>${risk}</strong>
+            <small>${publishAdvice(risk)}</small>
+          </div>
+          <div class="overview-card">
+            <span>命中风险点</span>
+            <strong>${issues.length} 个</strong>
+            <small>${issues.length ? "优先处理高风险项" : "未发现明显高危表达"}</small>
+          </div>
+          <div class="overview-card">
+            <span>可发布分</span>
+            <strong>${score}</strong>
+            <small>分数越高，发布风险越低</small>
+          </div>
+          <div class="overview-card">
+            <span>重点关注</span>
+            <strong>${focus}</strong>
+            <small>${$("vertical").value} · ${$("fanRange").value}</small>
+          </div>
+        </div>
+
+        <div class="summary block">
+          <h3>运营判断</h3>
+          <p>${buildSummary(risk, issues)}</p>
+        </div>
+
+        <div class="block">
+          <h3>命中风险点</h3>
+          <ul class="issue-list">${issueHtml}</ul>
+        </div>
+
+        <div class="block">
+          <div class="block-head">
+            <h3>表达改写建议</h3>
+            <button class="copy-btn" id="copyBtn" type="button">复制修改后全文案</button>
+          </div>
+          <div class="diff-list">
+            ${diffHtml}
+          </div>
+          <div class="rewrite-box safe">
+            <span>修改后全文案</span>
+            <p>${escapeHtml(safeCopy).replaceAll("\n", "<br>")}</p>
+          </div>
+          <textarea class="copy-fallback" id="copyFallback" readonly>${escapeHtml(safeCopy)}</textarea>
+        </div>
+
+        <div class="block">
+          <h3>发布前自查清单</h3>
+          <ul class="check-list">
+            <li><span class="tick">✓</span><span>是否避免了“保证、一定、稳赚、包过”等确定性承诺？</span></li>
+            <li><span class="tick">✓</span><span>是否说明了内容适用人群，而不是泛化到所有用户？</span></li>
+            <li><span class="tick">✓</span><span>评论引导是否自然、有讨论价值，而不是机械诱导互动？</span></li>
+            <li><span class="tick">✓</span><span>健康、财经、教育、就业等敏感内容是否补充了边界说明？</span></li>
+            <li><span class="tick">✓</span><span>修改后是否仍保留创作者原本的观点和内容吸引力？</span></li>
+          </ul>
+        </div>
+      `;
+    }
+
+    function buildSummary(risk, issues) {
+      if (risk === "高风险") {
+        return `当前内容存在 ${issues.length} 个风险点，其中包含高风险表达。建议优先处理确定性承诺、敏感垂类收益或疗效暗示，再进入发布流程。`;
+      }
+      if (risk === "中风险") {
+        return `当前内容的核心信息可以保留，但互动引导、适用范围或资料来源需要改得更自然、更透明，降低审核和用户体验风险。`;
+      }
+      return "当前内容表达相对稳妥，适合进入发布前人工复核。后续可以继续关注评论区反馈和内容分发后的用户举报率。";
+    }
+
+    function escapeHtml(value) {
+      return value.replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      }[char]));
+    }
+
+    function highlightBefore(text, changes) {
+      let output = escapeHtml(text);
+      changes.forEach(change => {
+        if (!text.includes(change.before)) return;
+        output = output.replaceAll(
+          escapeHtml(change.before),
+          `<mark style="background:#ffd7d2;color:#832d28;padding:1px 3px;border-radius:4px;">${escapeHtml(change.before)}</mark>`
+        );
+      });
+      return output;
+    }
+
+    function highlightAfter(text, changes) {
+      let output = escapeHtml(text);
+      changes.forEach(change => {
+        if (!text.includes(change.after)) return;
+        output = output.replaceAll(
+          escapeHtml(change.after),
+          `<mark style="background:#ccefe2;color:#075646;padding:1px 3px;border-radius:4px;">${escapeHtml(change.after)}</mark>`
+        );
+      });
+      return output;
+    }
+
+    async function copySafeCopy() {
+      const text = window.latestSafeCopy || "";
+      if (!text) return;
+      const btn = $("copyBtn");
+      const fallback = $("copyFallback");
+
+      try {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "0";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        const copied = document.execCommand("copy");
+        textarea.remove();
+
+        if (!copied && navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        }
+
+        if (btn) {
+          btn.textContent = "已复制";
+          setTimeout(() => btn.textContent = "复制修改后全文案", 1200);
+        }
+      } catch (error) {
+        if (fallback) {
+          fallback.classList.add("active");
+          fallback.focus();
+          fallback.select();
+        }
+        if (btn) btn.textContent = "已选中全文案，按 Cmd+C";
+      }
+    }
+
+    function loadSample() {
+      const current = samples.findIndex(sample => sample.title === $("title").value);
+      const sample = samples[(current + 1 + samples.length) % samples.length];
+      $("vertical").value = sample.vertical;
+      $("fanRange").value = sample.fanRange;
+      $("title").value = sample.title;
+      $("script").value = sample.script;
+      $("comment").value = sample.comment;
+      analyze();
+    }
+
+    $("scanBtn").addEventListener("click", analyze);
+    $("sampleBtn").addEventListener("click", loadSample);
+    document.addEventListener("click", (event) => {
+      if (event.target?.id === "copyBtn") {
+        copySafeCopy();
+      }
+    });
+  </script>
+</body>
+</html>
